@@ -16,3 +16,8 @@
         kubectl apply -f ./Volume-Mounts/Windows-filesystem/volume-config.yaml
         ```
 2.  __Publish the jacoco-sidecar image__
+    *   Image will be generated once the [pipeline](Containers/jacoco-sidecar-image/.gitlab-ci.yml) passes
+3.  __Publish the java-service-injected-agent image__
+    *   Image will be generated once the [pipeline](Containers/java-service-injected-agent/.gitlab-ci.yml) passes
+4.  __Publish the jacoco-report-aggregator image__
+    *   Image will be generated once the [pipeline](Containers/aggregate-jacoco-report/.gitlab-ci.yml) passes

@@ -1,0 +1,59 @@
+stages:
+  - Publish
+
+image: maven-3.5.4-jdk-8-alpine:latest
+
+variables:
+  VARIABLE_DATA: Gitlab-CI-YAML
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ''
+  VERSION:
+    value: "v1"
+    description: "Provide Version"
+  SOURCE_ENV:
+    value: "dev"
+    description: "Enter branch name"
+
+Report-Aggregation:
+  stage: Publish
+  script:
+    - declare -A PROJECT_LIST=( [java-service]=java_impl )
+    - |
+      for Projects in "${!PROJECT_LIST[@]}"
+      do
+        mvn $MAVEN_CLI_OPTS dependency:get -Dartifact=com.abc.$GROUP:${PROJECT_LIST[$Projects]}:$VERSION-$SOURCE_ENV-SNAPSHOT:jar:sources
+        mvn $MAVEN_CLI_OPTS dependency:get -Dartifact=com.abc.$GROUP:${PROJECT_LIST[$Projects]}:$VERSION-$SOURCE_ENV-SNAPSHOT
+        mkdir -p /data/$CI_PIPELINE_ID/$Projects/classfiles
+        mkdir -p /data/$CI_PIPELINE_ID/$Projects/sourcefiles
+        unzip /.m2/repository/com/abc/$GROUP/${PROJECT_LIST[$Projects]}/$VERSION-$SOURCE_ENV-SNAPSHOT/${PROJECT_LIST[$Projects]}-$VERSION-$SOURCE_ENV-SNAPSHOT.jar -d /data/$CI_PIPELINE_ID/$Projects/classfiles/
+        unzip /.m2/repository/com/abc/$GROUP/${PROJECT_LIST[$Projects]}/$VERSION-$SOURCE_ENV-SNAPSHOT/${PROJECT_LIST[$Projects]}-$VERSION-$SOURCE_ENV-SNAPSHOT-sources.jar -d /data/$CI_PIPELINE_ID/$Projects/sourcefiles/
+      done
+  tags:
+    - ${Report-Aggregation runner tag}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE=="web"'
+      when: on_success
+    - when: never
+
+Publish:
+  stage: Publish
+  image: docker:20.10.16
+  needs: ["Report-Aggregation"]  
+  services:
+    - name: docker:20.10.16-dind
+      alias: docker  
+  script:
+    - mkdir Jacoco_Resources
+    - cp -R /data/$CI_PIPELINE_ID Jacoco_Resources
+    - echo "$abc_REGISTRY_PASSWORD" | docker login $abc_REGISTRY --username $abc_REGISTRY_USER --password-stdin
+    - export IMAGE_NAME=jacoco-report-aggregator
+    - docker build -t $IMAGE_NAME:latest .
+    - export DATE_TAG=`date '+%Y%m%d%H%M%S'`
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker tag "$IMAGE_NAME:latest" "$abc_REGISTRY/$IMAGE_NAME:${t}"; done
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker push "$abc_REGISTRY/$IMAGE_NAME:${t}"; done
+  tags:
+    - ${Runner tag for Publish}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE=="web"'
+      when: on_success
+    - when: never
