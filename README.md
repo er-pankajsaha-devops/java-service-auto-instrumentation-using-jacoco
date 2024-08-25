@@ -1,8 +1,8 @@
-# JaCoCo: Measuring Code Coverage in Java Projects
+# 🚀 JaCoCo: Measuring Code Coverage in Java Projects
 
 JaCoCo (Java Code Coverage) is a powerful tool for assessing code coverage in Java applications. It provides insights into how much of your codebase is exercised during automated tests. In this project, we'll explore how to generate an auto-instrumentation report for a Java service using the JaCoCo Java agent.
 
-## Key Points
+## 🚨Key Points
 - **What is JaCoCo?**
   - JaCoCo is a code coverage reports generator specifically designed for Java projects.
   - It helps you understand which lines of code are executed during testing.
