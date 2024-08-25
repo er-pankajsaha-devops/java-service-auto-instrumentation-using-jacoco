@@ -1,0 +1,50 @@
+image: maven-3.5.4-jdk-8-alpine:latest
+
+stages:
+  - Publish
+
+variables:
+  VARIABLE_DATA: Gitlab-CI-YAML
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ''
+
+Jar-Publish:
+  stage: Publish
+  script:
+    - mkdir -p /data/$CI_PIPELINE_ID
+    - mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:get -Dartifact=org.jacoco:org.jacoco.cli:0.8.11:jar:nodeps
+    - mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:get -Dartifact=org.jacoco:org.jacoco.agent:0.8.11:jar:runtime
+    - mv /.m2/repository/org/jacoco/org.jacoco.cli/0.8.11/* /data/$CI_PIPELINE_ID/
+    - mv /.m2/repository/org/jacoco/org.jacoco.agent/0.8.11/* /data/$CI_PIPELINE_ID/
+  # Replace with the runner you want to use run the Jar-Publish Job.
+  tags:
+    - ${Jar-Publish-job-Tag}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE=="web"'
+      when: always
+    - when: never
+
+Publish:
+  stage: Publish
+  image: docker:20.10.16
+  needs: ["Jar-Publish"]
+  services:
+    - name: docker:20.10.16-dind
+      alias: docker  
+  script:
+    # set your docker registry details in the GITLAB runner variables section.
+    - mkdir Jacoco
+    - mv /data/$CI_PIPELINE_ID/* Jacoco
+    - echo "$abc_REGISTRY_PASSWORD" | docker login $abc_REGISTRY --username $abc_REGISTRY_USER --password-stdin
+    - export IMAGE_NAME=jacoco-exec-sidecar
+    - docker build -t $IMAGE_NAME:latest .
+    - export DATE_TAG=`date '+%Y%m%d%H%M%S'`
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker tag "$IMAGE_NAME:latest" "$abc_REGISTRY/$IMAGE_NAME:${t}"; done
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker push "$abc_REGISTRY/$IMAGE_NAME:${t}"; done
+  # Replace with the runner you want to use run the Publish Job.
+  tags:
+    - ${Publish-Job-Tag}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE=="web"'
+      when: always
+    - when: never
