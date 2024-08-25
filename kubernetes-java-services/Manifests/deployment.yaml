@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-service
+  namespace: default
+spec:
+  replicas: 2
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: java-service
+  template:
+    metadata:
+      name: java-service
+      labels:
+        app: java-service
+    spec:
+      containers:
+      - name: app
+        image: ${Java-service image with injected jacoco agent}
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: env-config
+        readinessProbe:
+          periodSeconds: 1
+          httpGet:
+            path: ${your service health check path}
+            port: 8080
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: jacoco-pvc-volume
+          mountPath: /home/jacoco-instrumentation/
+      - name: jacoco-sidecar
+        image: ${jacoco agent that fetches exec files every 5mins}
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: jacoco-pvc-volume
+          mountPath: /home/jacoco-instrumentation
+      initContainers:
+      - name: initiam
+        image: k8s.gcr.io/volume-nfs:0.8
+        env:
+        - name: POD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command:
+        - "/bin/mkdir"
+        args:
+        - "-p"
+        - "/home/jacoco-instrumentation/$(POD_HOSTNAME)"
+        volumeMounts:
+        - name: jacoco-pvc-volume
+          mountPath: "/home/jacoco-instrumentation"
+      imagePullSecrets:
+      - name: ${enter your image pull secret name}
+      volumes:
+      - name: jacoco-pvc-volume
+        persistentVolumeClaim:
+          #Enter the claim name created from Volume-Mount Section.
+          claimName: jacocoefs
