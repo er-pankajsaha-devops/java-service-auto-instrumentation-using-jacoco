@@ -1,0 +1,29 @@
+# The below persisten volume depicts if user wants to mount windows filesystem as shared volume to kuberentes pods
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jacoco-shared
+  namespace: default
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/run/desktop/mnt/host/c/Users/${user-defined-path}"
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jacocoefs
+  namespace: default
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
