@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: app
-        image: ${abc_REGISTRY}/java-service}
+        image: ${abc_REGISTRY}/java-service-instrument
         imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:

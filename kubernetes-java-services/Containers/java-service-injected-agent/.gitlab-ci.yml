@@ -1,0 +1,35 @@
+stages:
+  - Publish
+image: maven-3.5.4-jdk-8-alpine:latest
+
+variables:
+  VARIABLE_DATA: Gitlab-CI-YAML
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ''
+
+
+Instrument-Publish:
+  image: docker:20.10.16
+  stage: Publish
+  services:
+    - name: docker:20.10.16-dind
+      alias: docker  
+  script:
+    # Enter your service original entry point
+    - ENTRYPOINT=$(echo "java_service:abc.java.javaApp" | awk -v key=$PROJECT_NAME -v RS=',' -F':' '$1==key{print $2}')
+    - echo ${ENTRYPOINT}
+    - sed -i -e 's/#entryPoint#/'$ENTRYPOINT'/g' Dockerfile
+    - echo "$abc_REGISTRY_PASS" | docker login $abc_REGISTRY --username $abc_REGISTRY_USER --password-stdin
+    - export LATEST_IMAGE_NAME=java-service-instrument
+    - docker build -t $LATEST_IMAGE_NAME:latest .
+    - export DATE_TAG=`date '+%Y%m%d%H%M%S'`
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker tag "$LATEST_IMAGE_NAME:latest" "$abc_REGISTRY/$LATEST_IMAGE_NAME:${t}"; done
+    - for t in latest $CI_COMMIT_SHA $DATE_TAG; do docker push "$abc_REGISTRY/$LATEST_IMAGE_NAME:${t}"; done
+    - sed -i -e 's/'$ENTRYPOINT'/#entryPoint#/g' Dockerfile
+  # Replace with the runner you want to use run the Publish Job.
+  tags:
+    - ${Publish-Job-Tag}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE=="web"'
+      when: always
+    - when: never
